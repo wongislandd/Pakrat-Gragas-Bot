@@ -10,16 +10,20 @@ const PAKRAT_STRING = "pakrat"
 const PAKRAT_GRAGAS_CLIP = "https://medal.tv/clips/3aXiSkx_Dh5r8/s1ZdDDsPwW0m"
 
 client.on("message", (msg) => {
-    if((shouldTriggerPakratGragas(msg) || isPakratMentioned(msg)) && !isBotsOwnMessage(msg)) {
+    if(shouldTriggerPakratGragas(msg) && !isBotsOwnMessage(msg)) {
         msg.channel.send(PAKRAT_GRAGAS_CLIP)
     }
 })
 
 function shouldTriggerPakratGragas(msg) {
-    return msg.content.toLowerCase().includes(PAKRAT_STRING)
+    return isPakratMentioned(msg) || isPakratTagged(msg)
 }
 
 function isPakratMentioned(msg) {
+    return msg.content.toLowerCase().includes(PAKRAT_STRING)
+}
+
+function isPakratTagged(msg) {
     if (msg.mentions.members.first()) {
         return msg.mentions.members.first().user.id == PAKRAT_ID
     }
