@@ -20,13 +20,15 @@ client.on("message", (msg) => {
     if(shouldTriggerPakratGragas(msg) && !isBotsOwnMessage(msg)) {
         msg.channel.send(pickAClip())
     }
-    else if ((msg.author.id == PAKRAT_ID || msg.author.id == CHRIS_ID) && msg.content.startsWith(PREFIX)) {
+    else if ((msg.author.id === PAKRAT_ID || msg.author.id === CHRIS_ID) && msg.content.startsWith(PREFIX)) {
         let args = msg.content.substring(PREFIX.length).split(" ");
         switch(args[0]) {
             case "newClip":
-                if (args.length == 3) {
-                    addNewClipToSelection(args[1], args[2])
-                    msg.reply("Clip added.")
+                if (args.length === 3) {
+                    if (args[1].charAt(0) === "[" && args[1].charAt(args[1].length - 1) === "]") {
+                        addNewClipToSelection(args[1].slice(1, -1), args[2])
+                        msg.reply("Clip added.")
+                    }
                 }
                 else {
                     msg.reply("Use !newClip [title] [link]")
@@ -55,13 +57,13 @@ function isPakratASubstring(msg) {
 
 function isPakratMentioned(msg) {
     if (msg.mentions.members.first()) {
-        return msg.mentions.members.first().user.id == PAKRAT_ID
+        return msg.mentions.members.first().user.id === PAKRAT_ID
     }
     return false
 }
 
 function isBotsOwnMessage(msg) {
-    return msg.author.id == client.user.id
+    return msg.author.id === client.user.id
 }
 
 function addNewClipToSelection(title, link) {
@@ -70,7 +72,7 @@ function addNewClipToSelection(title, link) {
 }
 
 function deleteClip(title) {
-    if (title == PAKRAT_GRAGAS_CLIP_TITLE) {
+    if (title === PAKRAT_GRAGAS_CLIP_TITLE) {
         return
     }
     delete CLIPS[title]
@@ -118,7 +120,7 @@ function loadClips() {
 
 function helpMsg() {
     var helpStr = "`Commands`\n"
-    helpStr += "``-newClip [title] [link]`` : Add a new clip to the selection\n"
+    helpStr += "``-newClip [title] [link]`` : Add a new clip to the selection (Brackets required in [title])\n"
     helpStr += "``-deleteClip [title]`` : Remove a clip from the selection\n"
     helpStr += "``-listClips`` : List all available clips\n"
     return helpStr
