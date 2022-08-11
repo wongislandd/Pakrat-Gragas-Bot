@@ -28,11 +28,10 @@ client.on("message", (msg) => {
                     if (args[1].charAt(0) === "[" && args[1].charAt(args[1].length - 1) === "]") {
                         addNewClipToSelection(args[1].slice(1, -1), args[2])
                         msg.reply("Clip added.")
+                        break;
                     }
                 }
-                else {
-                    msg.reply("Use !newClip [title] [link]")
-                }
+                msg.reply("Use -newClip [title] [link] (Brackets required in [title])")
                 break;
             case "deleteClip":
                 deleteClip(args[1])
