@@ -24,18 +24,25 @@ client.on("message", (msg) => {
         let args = msg.content.substring(PREFIX.length).split(" ");
         switch(args[0]) {
             case "newClip":
-                if (args.length === 3) {
-                    if (args[1].charAt(0) === "[" && args[1].charAt(args[1].length - 1) === "]") {
-                        addNewClipToSelection(args[1].slice(1, -1), args[2])
-                        msg.reply("Clip added.")
-                        break;
+                if (args.length >= 3) {
+                    let linkAndTitle = extractLinkAndTitle(args)
+                    if (linkAndTitle[0] != null) {
+                        addNewClipToSelection(linkAndTitle[1], linkAndTitle[0])
+                        msg.reply("Added clip " + linkAndTitle[1])
+                    } else {
+                        msg.reply("Invalid link. Please stop being noob.")
                     }
+                    break;
                 }
                 msg.reply("Use -newClip [title] [link] (Brackets required in [title])")
                 break;
             case "deleteClip":
-                deleteClip(args[1])
-                msg.reply("Clip removed.")
+                let success = deleteClip(args.slice(1, args.length).join(" "))
+                if (success) {
+                    msg.reply("Clip removed.")
+                } else {
+                    msg.reply("Title not found in clip bank")
+                }
                 break;
             case "listClips":
                 msg.channel.send(listedClips())
@@ -45,6 +52,19 @@ client.on("message", (msg) => {
         }
     }
 })
+
+function extractLinkAndTitle(args) {
+    try {
+        let link = args[args.length-1]
+        let title = args.slice(1, args.length-1).join(" ")
+        new URL(link)
+        let ret = [link, title]
+        return ret
+    } catch (error) {
+        console.log(error)
+        return [null, null]
+    }    
+}
 
 function shouldTriggerPakratGragas(msg) {
     return isPakratASubstring(msg) || isPakratMentioned(msg)
@@ -74,8 +94,14 @@ function deleteClip(title) {
     if (title === PAKRAT_GRAGAS_CLIP_TITLE) {
         return
     }
-    delete CLIPS[title]
-    saveClips()
+    let allTitles = Object.keys(CLIPS);
+    if (allTitles.includes(title)) {
+        delete CLIPS[title]
+        saveClips()
+        return true
+    } else {
+        return false
+    }
 }
 
 function listedClips() {
