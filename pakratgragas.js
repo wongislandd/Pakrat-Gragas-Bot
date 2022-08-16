@@ -1,9 +1,50 @@
 require('dotenv').config()
 const fs = require('fs')
-const Discord = require("discord.js");
-const { strict } = require("assert");
-const client = new Discord.Client({
-    partials: ["MESSAGE", "CHANNEL", "REACTION"],
+const { token } = require('./config.json');
+const { Client, Intents } = require('discord.js');
+const { SlashCommandBuilder } = require('@discordjs/builders');
+const { Routes } = require('discord-api-types/v9');
+const { REST } = require('@discordjs/rest');
+const settings = require('./settings.json');
+
+const newClipCommand = new SlashCommandBuilder()
+    .setName('newclip')
+    .setDescription("Add a new clip to the pool!")
+    .addStringOption(option => option
+        .setName('title')
+        .setDescription('The title of the clip you are adding.')
+        .setRequired(true)
+    )
+    .addStringOption(option => option
+        .setName('link')
+        .setDescription('The link of the clip you are adding.')
+        .setRequired(true)
+    )
+
+const deleteClipCommand = new SlashCommandBuilder()
+    .setName('deleteclip')
+    .setDescription("Delete a clip from the pool!")
+    .addStringOption(option => option
+        .setName('target')
+        .setDescription('Title of the clip you want to delete. Must match exact title.')
+        .setRequired(true)
+    )
+
+const commands = [
+    newClipCommand,
+    deleteClipCommand,
+    new SlashCommandBuilder().setName('listclips').setDescription('List the clips available in the pool!'),
+].map(command => command.toJSON())
+
+const rest = new REST({ version: '9' }).setToken(token)
+
+rest.put(Routes.applicationGuildCommands(settings.clientId, settings.serverId), { body: commands })
+    .then(() => console.log("Successfully registered application commands."))
+    .catch(console.error)
+
+const client = new Client({
+    intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES, Intents.FLAGS.GUILD_MEMBERS, Intents.FLAGS.GUILD_MESSAGE_REACTIONS],
+    partials: ["MESSAGE", "CHANNEL", "REACTION", "GUILD_MEMBERS"],
 })
 
 const CHRIS_ID = "110128099361849344"
@@ -20,51 +61,39 @@ client.on("message", (msg) => {
     if(shouldTriggerPakratGragas(msg) && !isBotsOwnMessage(msg)) {
         msg.channel.send(pickAClip())
     }
-    else if ((msg.author.id === PAKRAT_ID || msg.author.id === CHRIS_ID) && msg.content.startsWith(PREFIX)) {
-        let args = msg.content.substring(PREFIX.length).split(" ");
-        switch(args[0]) {
-            case "newClip":
-                if (args.length >= 3) {
-                    let linkAndTitle = extractLinkAndTitle(args)
-                    if (linkAndTitle[0] != null) {
-                        addNewClipToSelection(linkAndTitle[1], linkAndTitle[0])
-                        msg.reply("Added clip " + linkAndTitle[1])
-                    } else {
-                        msg.reply("Invalid link. Please stop being noob.")
-                    }
-                    break;
-                }
-                msg.reply("Use -newClip [title] [link] (Brackets required in [title])")
-                break;
-            case "deleteClip":
-                let success = deleteClip(args.slice(1, args.length).join(" "))
-                if (success) {
-                    msg.reply("Clip removed.")
-                } else {
-                    msg.reply("Title not found in clip bank")
-                }
-                break;
-            case "listClips":
-                msg.channel.send(listedClips())
-                break;
-            default:
-                return msg.channel.send(helpMsg())
-        }
-    }
 })
 
-function extractLinkAndTitle(args) {
-    try {
-        let link = args[args.length-1]
-        let title = args.slice(1, args.length-1).join(" ")
-        new URL(link)
-        let ret = [link, title]
-        return ret
-    } catch (error) {
-        console.log(error)
-        return [null, null]
-    }    
-}
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isCommand()) return;
+
+    const { commandName, member, channel } = interaction
+
+    switch (commandName) {
+        case 'newclip':
+            let title = interaction.options.getString('title')
+            let link = interaction.options.getString('link')
+            if (addNewClipToSelection(title, link)) {
+                interaction.reply("Added clip " + quotedText(boldText(title)))
+            } else {
+                interaction.reply("Invalid link. Please stop being noob.")
+            }
+            break;
+        case 'deleteclip':
+            console.log(member.id)
+            let deleteTarget = interaction.options.getString('target')
+            if(deleteClip(deleteTarget)) {
+                interaction.reply("Deleted clip " + quotedText(boldText(deleteTarget)))
+            } else {
+                interaction.reply("Could not find the target clip. Make sure it's an exact match with the title.")
+            }
+            break;
+        case 'listclips':
+            interaction.reply(listedClips())
+            break;
+        default:
+            break;
+    }
+})
 
 function shouldTriggerPakratGragas(msg) {
     return isPakratASubstring(msg) || isPakratMentioned(msg)
@@ -86,8 +115,14 @@ function isBotsOwnMessage(msg) {
 }
 
 function addNewClipToSelection(title, link) {
-    CLIPS[title] = link
-    saveClips()
+    try {
+        new URL(link)
+        CLIPS[title] = link
+        saveClips()
+        return true
+    } catch(error) {
+        return false;
+    }
 }
 
 function deleteClip(title) {
@@ -143,12 +178,16 @@ function loadClips() {
       })
 }
 
-function helpMsg() {
-    var helpStr = "`Commands`\n"
-    helpStr += "``-newClip [title] [link]`` : Add a new clip to the selection (Brackets required in [title])\n"
-    helpStr += "``-deleteClip [title]`` : Remove a clip from the selection\n"
-    helpStr += "``-listClips`` : List all available clips\n"
-    return helpStr
+function codeText(str) {
+    return "```" + str + "```"
+}
+
+function boldText(str) {
+    return "**" + str + "**"
+}
+
+function quotedText(str) {
+    return "\"" + str + "\""
 }
 
 /**
@@ -164,4 +203,4 @@ client.on("ready", () => {
 /**
  * Log into the bot profile.
  */
-client.login(process.env.LIVE_BOT_TOKEN)
+client.login(token)
